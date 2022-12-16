@@ -39,8 +39,17 @@ to quickly create a Cobra application.`,
 		}
 		fmt.Println(Hosts)
 		logonname := viper.GetString("LOGONNAME")
-		fmt.Println(hosts, logonname)
-		//fmt.Println(HOSTS)
+		pw := viper.GetString("PW")
+		// fmt.Println(hosts, logonname, pw)
+		if logonname == "" {
+			return fmt.Errorf("no logon name")
+		}
+		if pw == "" {
+			return fmt.Errorf("no password")
+		}
+		if len(hosts) == 0 {
+			return fmt.Errorf("no hosts")
+		}
 		return nil
 	},
 }
