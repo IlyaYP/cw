@@ -1,13 +1,15 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // getconfigCmd represents the getconfig command
@@ -20,8 +22,26 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	// Run: func(cmd *cobra.Command, args []string) {
+	// 	fmt.Println("getconfig called")
+	// },
+	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("getconfig called")
+		var hosts []string
+		if Hosts != "" {
+			content, err := os.ReadFile(Hosts)
+			if err != nil {
+				return err
+			}
+			hosts = strings.Split(string(content), "\n")
+		} else {
+			hosts = viper.GetStringSlice("HOSTS")
+		}
+		fmt.Println(Hosts)
+		logonname := viper.GetString("LOGONNAME")
+		fmt.Println(hosts, logonname)
+		//fmt.Println(HOSTS)
+		return nil
 	},
 }
 

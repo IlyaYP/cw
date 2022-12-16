@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -13,6 +12,8 @@ import (
 )
 
 var cfgFile string
+var Hosts, LOGONNAME string
+var HOSTS []string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -46,6 +47,7 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cw.yaml)")
+	rootCmd.PersistentFlags().StringVar(&Hosts, "hosts", "", "hosts file (default is ./hosts)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -59,8 +61,9 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+		// home, err := os.UserHomeDir()
+		// cobra.CheckErr(err)
+		home := "./"
 
 		// Search config in home directory with name ".cw" (without extension).
 		viper.AddConfigPath(home)
