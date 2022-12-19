@@ -5,11 +5,14 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
+	"github.com/IlyaYP/cw/pkg"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 )
 
 // getconfigCmd represents the getconfig command
@@ -50,7 +53,7 @@ to quickly create a Cobra application.`,
 		if len(hosts) == 0 {
 			return fmt.Errorf("no hosts")
 		}
-		return nil
+		return getconfig(logonname, pw, hosts)
 	},
 }
 
@@ -66,4 +69,25 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// getconfigCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func getconfig(logonname, pw string, hosts []string) error {
+
+	g := new(errgroup.Group)
+	for _, hostname := range hosts {
+		hostname := hostname // https://go.dev/doc/faq#closures_and_goroutines
+		g.Go(func() error {
+			return pkg.GetConfig(hostname, logonname, pw)
+		})
+	}
+
+	log.Print("doing")
+	err := g.Wait()
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	log.Print("all done no errors")
+	return nil
 }
