@@ -18,7 +18,7 @@ import (
 // getconfigCmd represents the getconfig command
 var getconfigCmd = &cobra.Command{
 	Use:   "getconfig",
-	Short: "A brief description of your command",
+	Short: "Gets running config",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
