@@ -10,9 +10,38 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func GetConfig(hostname, username, password string) error {
+func GetConfig(hostname, username, password string, commands []string) error {
 	var reConf = regexp.MustCompile(`(?s)Current configuration .*end`)
 	var reHost = regexp.MustCompile(`(?m)^hostname\s([-0-9A-Za-z_]+).?$`)
+
+	out, err := doSSHCommands(hostname, username, password, commands)
+	if err != nil {
+		return err
+	}
+
+	if reHost.Match(out) {
+		fname := string(reHost.FindSubmatch(out)[1])
+
+		log.Print(fname)
+
+		if reConf.Match(out) {
+			config := reConf.FindAll(out, -1)[0]
+			err := os.WriteFile(fname, config, 0644)
+			if err != nil {
+				log.Print(err)
+				return err
+			}
+		} else {
+			log.Print(hostname, "config not found")
+		}
+	} else {
+		log.Print(hostname, "hostname not found")
+	}
+	// time.Sleep(5 * time.Second)
+	return nil
+}
+
+func doSSHCommands(hostname, username, password string, commands []string) ([]byte, error) {
 	port := "22"
 
 	// SSH client config
@@ -40,7 +69,7 @@ func GetConfig(hostname, username, password string) error {
 	client, err := ssh.Dial("tcp", hostname+":"+port, config)
 	if err != nil {
 		log.Print(err)
-		return err
+		return nil, err
 	}
 	defer client.Close()
 
@@ -48,7 +77,7 @@ func GetConfig(hostname, username, password string) error {
 	sess, err := client.NewSession()
 	if err != nil {
 		log.Print(err)
-		return err
+		return nil, err
 	}
 	defer sess.Close()
 
@@ -56,7 +85,7 @@ func GetConfig(hostname, username, password string) error {
 	stdin, err := sess.StdinPipe()
 	if err != nil {
 		log.Print(err)
-		return err
+		return nil, err
 	}
 
 	// Uncomment to store output in variable
@@ -73,20 +102,14 @@ func GetConfig(hostname, username, password string) error {
 	err = sess.Shell()
 	if err != nil {
 		log.Print(err)
-		return err
+		return nil, err
 	}
 
-	// send the commands
-	commands := []string{
-		"terminal length 0",
-		"show running-config",
-		"exit",
-	}
 	for _, cmd := range commands {
 		_, err = fmt.Fprintf(stdin, "%s\n", cmd)
 		if err != nil {
 			log.Print(err)
-			return err
+			return nil, err
 		}
 	}
 
@@ -95,13 +118,27 @@ func GetConfig(hostname, username, password string) error {
 	err = sess.Wait()
 	if err != nil {
 		log.Print(err)
-		return err
+		return nil, err
 	}
 
 	// Uncomment to store in variable
 	// fmt.Println(b.String())
 	out := b.Bytes()
 	// fmt.Println(string(out))
+
+	return out, nil
+
+}
+
+func GetUsers(hostname, username, password string, commands []string) error {
+	var reConf = regexp.MustCompile(`(?s)Current configuration .*end`)
+	var reHost = regexp.MustCompile(`(?m)^hostname\s([-0-9A-Za-z_]+).?$`)
+	var reUser = regexp.MustCompile(`(?m)^username\s([-0-9A-Za-z_]+)\s.?$`)
+
+	out, err := doSSHCommands(hostname, username, password, commands)
+	if err != nil {
+		return err
+	}
 
 	if reHost.Match(out) {
 		fname := string(reHost.FindSubmatch(out)[1])

@@ -4,6 +4,7 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 
@@ -13,6 +14,7 @@ import (
 
 var cfgFile string
 var Hosts, LOGONNAME string
+
 var HOSTS []string
 
 // rootCmd represents the base command when called without any subcommands
@@ -52,6 +54,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -78,4 +81,52 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
+
+	if err := readHostsFile(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+}
+
+func readHostsFile() error {
+	// get from file
+	if Hosts != "" {
+		content, err := readLines(Hosts)
+		if err != nil {
+			return err
+		}
+		HOSTS = content
+		return nil
+	}
+
+	// get from config
+	HOSTS = viper.GetStringSlice("HOSTS")
+	if len(HOSTS) != 0 {
+		return nil
+	}
+
+	// get from default
+	content, err := readLines("./hosts")
+	if err != nil {
+		return err
+	}
+	HOSTS = content
+	return nil
+}
+
+// readLines reads a whole file into memory
+// and returns a slice of its lines.
+func readLines(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
 }
