@@ -173,3 +173,18 @@ func GetUsers(hostname, username, password string, commands []string, ch chan st
 
 	return nil
 }
+
+func DoCommands(hostname, username, password string, commands []string) error {
+	out, err := doSSHCommands(hostname, username, password, commands)
+	if err != nil {
+		return fmt.Errorf("docommands %s: %w", hostname, err)
+	}
+
+	err = os.WriteFile(hostname+".log", out, 0644)
+	if err != nil {
+		// log.Print(err)
+		return fmt.Errorf("docommands %s: %w", hostname, err)
+	}
+
+	return nil
+}

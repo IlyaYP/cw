@@ -6,8 +6,10 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/IlyaYP/cw/pkg"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 )
 
 var scrFile string
@@ -35,10 +37,17 @@ to quickly create a Cobra application.`,
 		if pw == "" {
 			return fmt.Errorf("no password")
 		}
+		if len(HOSTS) == 0 {
+			return fmt.Errorf("no hosts")
+		}
 		if scrFile == "" {
 			return fmt.Errorf("no commands file")
 		}
-		return nil
+		commands, err := readLines(scrFile)
+		if err != nil {
+			return err
+		}
+		return doCommands(logonname, pw, HOSTS, commands)
 	},
 }
 
@@ -56,4 +65,25 @@ func init() {
 	// scriptCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	scriptCmd.Flags().StringVar(&scrFile, "cmd", "", "script commands file")
 
+}
+
+func doCommands(logonname, pw string, hosts []string, commands []string) error {
+	g := new(errgroup.Group)
+	for _, hostname := range hosts {
+		hostname := hostname // https://go.dev/doc/faq#closures_and_goroutines
+		g.Go(func() error {
+			return pkg.DoCommands(hostname, logonname, pw, commands)
+		})
+	}
+
+	// log.Print("doing")
+
+	err := g.Wait()
+	if err != nil {
+		// log.Print(err)
+		return err
+	}
+
+	// log.Print("all done no errors")
+	return nil
 }
