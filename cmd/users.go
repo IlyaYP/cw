@@ -5,7 +5,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
+	"sort"
 
 	"github.com/IlyaYP/cw/pkg"
 	"github.com/spf13/cobra"
@@ -57,7 +57,19 @@ func init() {
 	// usersCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
+type UserName struct {
+	Key   string
+	Value int
+}
+
+type UserNameList []UserName
+
+func (p UserNameList) Len() int           { return len(p) }
+func (p UserNameList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p UserNameList) Less(i, j int) bool { return p[i].Value < p[j].Value }
+
 func getusers(logonname, pw string, hosts []string) error {
+	m := make(map[string]int)
 
 	// send the commands
 	commands := []string{
@@ -82,21 +94,36 @@ func getusers(logonname, pw string, hosts []string) error {
 		})
 	}
 
-	log.Print("doing")
+	// log.Print("doing")
 
 	// здесь fanIn
 	for v := range pkg.FanIn(chs...) {
-		fmt.Println(v)
+		// fmt.Println(v)
+		m[v] += 1
 	}
 
-	log.Print("done")
+	p := make(UserNameList, len(m))
+
+	i := 0
+	for k, v := range m {
+		p[i] = UserName{k, v}
+		i++
+	}
+
+	sort.Sort(sort.Reverse(p))
+
+	for _, k := range p {
+		fmt.Printf("%s: %v\n", k.Key, k.Value)
+	}
+
+	// log.Print("done")
 
 	err := g.Wait()
 	if err != nil {
-		log.Print(err)
+		// log.Print(err)
 		return err
 	}
 
-	log.Print("all done no errors")
+	// log.Print("all done no errors")
 	return nil
 }

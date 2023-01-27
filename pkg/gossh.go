@@ -68,24 +68,21 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 	// Connect to host
 	client, err := ssh.Dial("tcp", hostname+":"+port, config)
 	if err != nil {
-		log.Print(err)
-		return nil, err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 	defer client.Close()
 
 	// Create sesssion
 	sess, err := client.NewSession()
 	if err != nil {
-		log.Print(err)
-		return nil, err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 	defer sess.Close()
 
 	// StdinPipe for commands
 	stdin, err := sess.StdinPipe()
 	if err != nil {
-		log.Print(err)
-		return nil, err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
 	// Uncomment to store output in variable
@@ -101,15 +98,14 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 	// Start remote shell
 	err = sess.Shell()
 	if err != nil {
-		log.Print(err)
-		return nil, err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
 	for _, cmd := range commands {
 		_, err = fmt.Fprintf(stdin, "%s\n", cmd)
 		if err != nil {
-			log.Print(err)
-			return nil, err
+
+			return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 		}
 	}
 
@@ -117,8 +113,7 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 	// Wait for sess to finish
 	err = sess.Wait()
 	if err != nil {
-		log.Print(err)
-		return nil, err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
 	// Uncomment to store in variable
@@ -138,7 +133,7 @@ func GetUsers(hostname, username, password string, commands []string, ch chan st
 
 	out, err := doSSHCommands(hostname, username, password, commands)
 	if err != nil {
-		return err
+		return fmt.Errorf("getusers %s: %w", hostname, err)
 	}
 
 	// if reHost.Match(out) {
@@ -162,8 +157,8 @@ func GetUsers(hostname, username, password string, commands []string, ch chan st
 
 	err = os.WriteFile(hostname+".log", out, 0644)
 	if err != nil {
-		log.Print(err)
-		return err
+		// log.Print(err)
+		return fmt.Errorf("getusers %s: %w", hostname, err)
 	}
 
 	if reUser.Match(out) {
@@ -173,7 +168,7 @@ func GetUsers(hostname, username, password string, commands []string, ch chan st
 			ch <- uname
 		}
 	} else {
-		log.Print(hostname, "username not found")
+		log.Print(hostname, " username not found")
 	}
 
 	return nil
