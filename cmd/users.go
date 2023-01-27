@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/IlyaYP/cw/pkg"
 	"github.com/spf13/cobra"
@@ -66,15 +67,31 @@ func getusers(logonname, pw string, hosts []string) error {
 		"exit",
 	}
 
+	n := len(hosts)
+	chs := make([]chan string, 0, n)
+	for i := 0; i < n; i++ {
+		ch := make(chan string)
+		chs = append(chs, ch)
+	}
+
 	g := new(errgroup.Group)
-	for _, hostname := range hosts {
+	for i, hostname := range hosts {
 		hostname := hostname // https://go.dev/doc/faq#closures_and_goroutines
+		ch := chs[i]
 		g.Go(func() error {
-			return pkg.GetUsers(hostname, logonname, pw, commands)
+			return pkg.GetUsers(hostname, logonname, pw, commands, ch)
 		})
 	}
 
 	log.Print("doing")
+
+	// здесь fanIn
+	for v := range fanIn(chs...) {
+		fmt.Println(v)
+	}
+
+	log.Print("done")
+
 	err := g.Wait()
 	if err != nil {
 		log.Print(err)
@@ -83,4 +100,28 @@ func getusers(logonname, pw string, hosts []string) error {
 
 	log.Print("all done no errors")
 	return nil
+}
+
+func fanIn(inputChs ...chan string) chan string {
+	outCh := make(chan string)
+
+	go func() {
+		wg := &sync.WaitGroup{}
+
+		for _, inputCh := range inputChs {
+			wg.Add(1)
+
+			go func(inputCh chan string) {
+				defer wg.Done()
+				for item := range inputCh {
+					outCh <- item
+				}
+			}(inputCh)
+		}
+
+		wg.Wait()
+		close(outCh)
+	}()
+
+	return outCh
 }

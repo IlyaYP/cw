@@ -130,34 +130,50 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 
 }
 
-func GetUsers(hostname, username, password string, commands []string) error {
-	var reConf = regexp.MustCompile(`(?s)Current configuration .*end`)
-	var reHost = regexp.MustCompile(`(?m)^hostname\s([-0-9A-Za-z_]+).?$`)
-	var reUser = regexp.MustCompile(`(?m)^username\s([-0-9A-Za-z_]+)\s.?$`)
+func GetUsers(hostname, username, password string, commands []string, ch chan string) error {
+	defer close(ch)
+	// var reConf = regexp.MustCompile(`(?s)Current configuration .*end`)
+	// var reHost = regexp.MustCompile(`(?m)^hostname\s([-0-9A-Za-z_]+).?$`)
+	var reUser = regexp.MustCompile(`(?m)^username\s([-0-9A-Za-z_]+)\s`)
 
 	out, err := doSSHCommands(hostname, username, password, commands)
 	if err != nil {
 		return err
 	}
 
-	if reHost.Match(out) {
-		fname := string(reHost.FindSubmatch(out)[1])
+	// if reHost.Match(out) {
+	// 	fname := string(reHost.FindSubmatch(out)[1])
 
-		log.Print(fname)
+	// 	log.Print(fname)
 
-		if reConf.Match(out) {
-			config := reConf.FindAll(out, -1)[0]
-			err := os.WriteFile(fname, config, 0644)
-			if err != nil {
-				log.Print(err)
-				return err
-			}
-		} else {
-			log.Print(hostname, "config not found")
+	// 	if reConf.Match(out) {
+	// 		config := reConf.FindAll(out, -1)[0]
+	// 		err := os.WriteFile(fname, config, 0644)
+	// 		if err != nil {
+	// 			log.Print(err)
+	// 			return err
+	// 		}
+	// 	} else {
+	// 		log.Print(hostname, "config not found")
+	// 	}
+	// } else {
+	// 	log.Print(hostname, "hostname not found")
+	// }
+
+	err = os.WriteFile(hostname+".log", out, 0644)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	if reUser.Match(out) {
+		for _, sm := range reUser.FindAllSubmatch(out, -1) {
+			uname := string(sm[1])
+			ch <- hostname + ":" + uname
 		}
 	} else {
-		log.Print(hostname, "hostname not found")
+		log.Print(hostname, "username not found")
 	}
-	// time.Sleep(5 * time.Second)
+
 	return nil
 }
