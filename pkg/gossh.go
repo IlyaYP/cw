@@ -169,7 +169,8 @@ func GetUsers(hostname, username, password string, commands []string, ch chan st
 	if reUser.Match(out) {
 		for _, sm := range reUser.FindAllSubmatch(out, -1) {
 			uname := string(sm[1])
-			ch <- hostname + ":" + uname
+			// ch <- hostname + ":" + uname
+			ch <- uname
 		}
 	} else {
 		log.Print(hostname, "username not found")

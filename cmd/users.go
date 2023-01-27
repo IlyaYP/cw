@@ -6,7 +6,6 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"sync"
 
 	"github.com/IlyaYP/cw/pkg"
 	"github.com/spf13/cobra"
@@ -86,7 +85,7 @@ func getusers(logonname, pw string, hosts []string) error {
 	log.Print("doing")
 
 	// здесь fanIn
-	for v := range fanIn(chs...) {
+	for v := range pkg.FanIn(chs...) {
 		fmt.Println(v)
 	}
 
@@ -100,28 +99,4 @@ func getusers(logonname, pw string, hosts []string) error {
 
 	log.Print("all done no errors")
 	return nil
-}
-
-func fanIn(inputChs ...chan string) chan string {
-	outCh := make(chan string)
-
-	go func() {
-		wg := &sync.WaitGroup{}
-
-		for _, inputCh := range inputChs {
-			wg.Add(1)
-
-			go func(inputCh chan string) {
-				defer wg.Done()
-				for item := range inputCh {
-					outCh <- item
-				}
-			}(inputCh)
-		}
-
-		wg.Wait()
-		close(outCh)
-	}()
-
-	return outCh
 }
