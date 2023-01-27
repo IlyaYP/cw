@@ -10,9 +10,38 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func GetConfig(hostname, username, password string) error {
+func GetConfig(hostname, username, password string, commands []string) error {
 	var reConf = regexp.MustCompile(`(?s)Current configuration .*end`)
 	var reHost = regexp.MustCompile(`(?m)^hostname\s([-0-9A-Za-z_]+).?$`)
+
+	out, err := doSSHCommands(hostname, username, password, commands)
+	if err != nil {
+		return err
+	}
+
+	if reHost.Match(out) {
+		fname := string(reHost.FindSubmatch(out)[1])
+
+		log.Print(fname)
+
+		if reConf.Match(out) {
+			config := reConf.FindAll(out, -1)[0]
+			err := os.WriteFile(fname, config, 0644)
+			if err != nil {
+				log.Print(err)
+				return err
+			}
+		} else {
+			log.Print(hostname, "config not found")
+		}
+	} else {
+		log.Print(hostname, "hostname not found")
+	}
+	// time.Sleep(5 * time.Second)
+	return nil
+}
+
+func doSSHCommands(hostname, username, password string, commands []string) ([]byte, error) {
 	port := "22"
 
 	// SSH client config
@@ -39,24 +68,21 @@ func GetConfig(hostname, username, password string) error {
 	// Connect to host
 	client, err := ssh.Dial("tcp", hostname+":"+port, config)
 	if err != nil {
-		log.Print(err)
-		return err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 	defer client.Close()
 
 	// Create sesssion
 	sess, err := client.NewSession()
 	if err != nil {
-		log.Print(err)
-		return err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 	defer sess.Close()
 
 	// StdinPipe for commands
 	stdin, err := sess.StdinPipe()
 	if err != nil {
-		log.Print(err)
-		return err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
 	// Uncomment to store output in variable
@@ -72,21 +98,14 @@ func GetConfig(hostname, username, password string) error {
 	// Start remote shell
 	err = sess.Shell()
 	if err != nil {
-		log.Print(err)
-		return err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
-	// send the commands
-	commands := []string{
-		"terminal length 0",
-		"show running-config",
-		"exit",
-	}
 	for _, cmd := range commands {
 		_, err = fmt.Fprintf(stdin, "%s\n", cmd)
 		if err != nil {
-			log.Print(err)
-			return err
+
+			return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 		}
 	}
 
@@ -94,8 +113,7 @@ func GetConfig(hostname, username, password string) error {
 	// Wait for sess to finish
 	err = sess.Wait()
 	if err != nil {
-		log.Print(err)
-		return err
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
 	// Uncomment to store in variable
@@ -103,24 +121,55 @@ func GetConfig(hostname, username, password string) error {
 	out := b.Bytes()
 	// fmt.Println(string(out))
 
-	if reHost.Match(out) {
-		fname := string(reHost.FindSubmatch(out)[1])
+	return out, nil
 
-		log.Print(fname)
+}
 
-		if reConf.Match(out) {
-			config := reConf.FindAll(out, -1)[0]
-			err := os.WriteFile(fname, config, 0644)
-			if err != nil {
-				log.Print(err)
-				return err
-			}
-		} else {
-			log.Print(hostname, "config not found")
+func GetUsers(hostname, username, password string, commands []string, ch chan string) error {
+	defer close(ch)
+	// var reConf = regexp.MustCompile(`(?s)Current configuration .*end`)
+	// var reHost = regexp.MustCompile(`(?m)^hostname\s([-0-9A-Za-z_]+).?$`)
+	var reUser = regexp.MustCompile(`(?m)^username\s([-0-9A-Za-z_]+)\s`)
+
+	out, err := doSSHCommands(hostname, username, password, commands)
+	if err != nil {
+		return fmt.Errorf("getusers %s: %w", hostname, err)
+	}
+
+	// if reHost.Match(out) {
+	// 	fname := string(reHost.FindSubmatch(out)[1])
+
+	// 	log.Print(fname)
+
+	// 	if reConf.Match(out) {
+	// 		config := reConf.FindAll(out, -1)[0]
+	// 		err := os.WriteFile(fname, config, 0644)
+	// 		if err != nil {
+	// 			log.Print(err)
+	// 			return err
+	// 		}
+	// 	} else {
+	// 		log.Print(hostname, "config not found")
+	// 	}
+	// } else {
+	// 	log.Print(hostname, "hostname not found")
+	// }
+
+	err = os.WriteFile(hostname+".log", out, 0644)
+	if err != nil {
+		// log.Print(err)
+		return fmt.Errorf("getusers %s: %w", hostname, err)
+	}
+
+	if reUser.Match(out) {
+		for _, sm := range reUser.FindAllSubmatch(out, -1) {
+			uname := string(sm[1])
+			// ch <- hostname + ":" + uname
+			ch <- uname
 		}
 	} else {
-		log.Print(hostname, "hostname not found")
+		log.Print(hostname, " username not found")
 	}
-	// time.Sleep(5 * time.Second)
+
 	return nil
 }
