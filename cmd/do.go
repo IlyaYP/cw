@@ -1,11 +1,10 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 */
 package cmd
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/IlyaYP/cw/pkg"
 	"github.com/spf13/cobra"
@@ -13,21 +12,22 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// getconfigCmd represents the getconfig command
-var getconfigCmd = &cobra.Command{
-	Use:   "getconfig",
-	Short: "Gets running configs and saves to files",
-	// 	Long: `A longer description that spans multiple lines and likely contains examples
+var scrFile string
+
+// doCmd represents the script command
+var doCmd = &cobra.Command{
+	Use:   "do",
+	Short: "Executes  commands from the script file on devices",
+	// 	// Long: `A longer description that spans multiple lines and likely contains examples
 	// and usage of using your command. For example:
 
 	// Cobra is a CLI library for Go that empowers applications.
 	// This application is a tool to generate the needed files
 	// to quickly create a Cobra application.`,
 	// Run: func(cmd *cobra.Command, args []string) {
-	// 	fmt.Println("getconfig called")
-	// },
+	// 	fmt.Println("script called")
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("getconfig called")
+		fmt.Println("script called")
 		logonname := viper.GetString("LOGONNAME")
 		pw := viper.GetString("PW")
 		// fmt.Println(hosts, logonname, pw)
@@ -40,48 +40,50 @@ var getconfigCmd = &cobra.Command{
 		if len(HOSTS) == 0 {
 			return fmt.Errorf("no hosts")
 		}
-		return getconfig(logonname, pw, HOSTS)
+		if scrFile == "" {
+			return fmt.Errorf("no commands file")
+		}
+		commands, err := readLines(scrFile)
+		if err != nil {
+			return err
+		}
+		return doCommands(logonname, pw, HOSTS, commands)
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(getconfigCmd)
+	rootCmd.AddCommand(doCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// getconfigCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// doCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// getconfigCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// doCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	doCmd.Flags().StringVar(&scrFile, "cmd", "", "script commands file")
+
 }
 
-func getconfig(logonname, pw string, hosts []string) error {
-
-	// send the commands
-	commands := []string{
-		"terminal length 0",
-		"show running-config",
-		"exit",
-	}
-
+func doCommands(logonname, pw string, hosts []string, commands []string) error {
 	g := new(errgroup.Group)
 	for _, hostname := range hosts {
 		hostname := hostname // https://go.dev/doc/faq#closures_and_goroutines
 		g.Go(func() error {
-			return pkg.GetConfig(hostname, logonname, pw, commands)
+			return pkg.DoCommands(hostname, logonname, pw, commands)
 		})
 	}
 
-	log.Print("doing")
+	// log.Print("doing")
+
 	err := g.Wait()
 	if err != nil {
-		log.Print(err)
+		// log.Print(err)
 		return err
 	}
 
-	log.Print("all done no errors")
+	// log.Print("all done no errors")
 	return nil
 }
