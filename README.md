@@ -2,9 +2,9 @@
 cisco worker - small tool that helps automate some work
 
 DONE:
-- getconfig get running config and save ti file
-- show users shows users local account on devices
-- script execute commands from a file on devices
+- *getconfig* gets running configs and saves to files
+- *shusers* shows users local account on devices
+- *do* does commands from the script file on devices
 
 
 TODO:

@@ -13,20 +13,20 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// usersCmd represents the users command
-var usersCmd = &cobra.Command{
-	Use:   "users",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+// shUsersCmd represents the users command
+var shUsersCmd = &cobra.Command{
+	Use:   "shusers",
+	Short: "shows users local account on devices",
+	// 	Long: `A longer description that spans multiple lines and likely contains examples
+	// and usage of using your command. For example:
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	// Cobra is a CLI library for Go that empowers applications.
+	// This application is a tool to generate the needed files
+	// to quickly create a Cobra application.`,
 	// Run: func(cmd *cobra.Command, args []string) {
 	// 	fmt.Println("users called")
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("users called")
+		fmt.Println("shusers called")
 		logonname := viper.GetString("LOGONNAME")
 		pw := viper.GetString("PW")
 		// fmt.Println(hosts, logonname, pw)
@@ -44,7 +44,7 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	showCmd.AddCommand(usersCmd)
+	rootCmd.AddCommand(shUsersCmd)
 
 	// Here you will define your flags and configuration settings.
 
