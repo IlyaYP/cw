@@ -16,7 +16,7 @@ import (
 // shUsersCmd represents the users command
 var shUsersCmd = &cobra.Command{
 	Use:   "shusers",
-	Short: "shows users local account on devices",
+	Short: "Shows users local account on devices",
 	// 	Long: `A longer description that spans multiple lines and likely contains examples
 	// and usage of using your command. For example:
 
