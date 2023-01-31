@@ -8,7 +8,9 @@ DONE:
 
 
 TODO:
+- add check command to check availability and get hostname
 - after connecting, read the prompt, determine the mode($/#) and hostname from promt.
 - set timeout for ssh session
+
 
 
