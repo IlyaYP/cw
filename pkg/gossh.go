@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -110,8 +111,24 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 	}
 
 	// log.Print(hostname)
-	// Wait for sess to finish
-	err = sess.Wait()
+
+	ch := make(chan bool)
+
+	go func() {
+		// Wait for sess to finish
+		err = sess.Wait()
+		ch <- true
+	}()
+
+	select {
+	case <-ch:
+
+	case <-time.After(time.Duration(time.Second * 5)):
+		// return 0, errors.New("Timeout")
+		log.Println("Timeout")
+		sess.Close()
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
