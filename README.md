@@ -23,6 +23,7 @@ Use "cw [command] --help" for more information about a command.
 ```
 TODO:
 - after connecting, read the prompt, determine the mode($/#) and hostname from promt.
+- invent a device model and make it possible to serialize to JSON
 
 
 DONE:
