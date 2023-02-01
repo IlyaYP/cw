@@ -1,7 +1,7 @@
 package pkg
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -86,9 +86,14 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
+	stdout, err := sess.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
+	}
+
 	// Uncomment to store output in variable
-	var b bytes.Buffer
-	sess.Stdout = &b
+	// var b bytes.Buffer
+	// sess.Stdout = &b
 	//sess.Stderr = &b
 
 	// Enable system stdout
@@ -102,10 +107,18 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
+	// Wait for promt
+
+	reader := bufio.NewReader(stdout)
+	rcv, err := reader.ReadBytes('#')
+	if err != nil {
+		fmt.Printf("reader error: %s", err)
+		return rcv, err
+	}
+
 	for _, cmd := range commands {
 		_, err = fmt.Fprintf(stdin, "%s\n", cmd)
 		if err != nil {
-
 			return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 		}
 	}
@@ -135,7 +148,7 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 
 	// Uncomment to store in variable
 	// fmt.Println(b.String())
-	out := b.Bytes()
+	// out := b.Bytes()
 	// fmt.Println(string(out))
 
 	return out, nil

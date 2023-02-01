@@ -22,9 +22,12 @@ Flags:
 Use "cw [command] --help" for more information about a command.
 ```
 TODO:
+- add check command to check availability and get hostname
 - after connecting, read the prompt, determine the mode($/#) and hostname from promt.
 - invent a device model and make it possible to serialize to JSON
 
 
 DONE:
 - set timeout for ssh session
+
+
