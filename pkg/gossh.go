@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +12,18 @@ import (
 
 	"golang.org/x/crypto/ssh"
 )
+
+func executeCmd(cmd, hostname string, config *ssh.ClientConfig) string {
+	conn, _ := ssh.Dial("tcp", hostname+":22", config)
+	session, _ := conn.NewSession()
+	defer session.Close()
+
+	var stdoutBuf bytes.Buffer
+	session.Stdout = &stdoutBuf
+	session.Run(cmd)
+
+	return hostname + ": " + stdoutBuf.String()
+}
 
 func doSSHCommands(hostname, username, password string, commands []string) ([]byte, error) {
 	port := "22"
@@ -25,11 +38,21 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
+	// Error: docommands 192.168.251.150: dosshcommand 192.168.251.150: ssh: handshake failed: ssh: no common algorithm for key exchange; client offered: [diffie-hellman-group-exchange-sha256 diffie-hellman-group-exchange-sha1 diffie-hellman-group1-sha1 ext-info-c], server offered: [curve25519-sha256 curve25519-sha256@libssh.org ecdh-sha2-nistp256 ecdh-sha2-nistp384 ecdh-sha2-nistp521 diffie-hellman-group16-sha512 diffie-hellman-group14-sha1 diffie-hellman-group14-sha256]
+
 	config.KeyExchanges = append(
 		config.KeyExchanges,
 		"diffie-hellman-group-exchange-sha256",
 		"diffie-hellman-group-exchange-sha1",
-		"diffie-hellman-group1-sha1",
+		"diffie-hellman-group1-sha1", //
+		"curve25519-sha256",
+		"curve25519-sha256@libssh.org",
+		"ecdh-sha2-nistp256",
+		"ecdh-sha2-nistp384",
+		"ecdh-sha2-nistp521",
+		"diffie-hellman-group16-sha512",
+		"diffie-hellman-group14-sha1",
+		"diffie-hellman-group14-sha256",
 	)
 
 	config.Ciphers = append(config.Ciphers, "aes128-cbc", "3des-cbc",
@@ -37,29 +60,50 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 
 	//////////////////////////////
 	// Connect to host
+	log.Println("trying connect")
 	client, err := ssh.Dial("tcp", hostname+":"+port, config)
 	if err != nil {
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 	defer client.Close()
+	log.Println("connected")
 
 	// Create sesssion
+	log.Println("Creating sesssion")
 	sess, err := client.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 	defer sess.Close()
+	log.Println("Created")
+
+	// configure terminal mode
+	modes := ssh.TerminalModes{
+		ssh.ECHO: 0, // supress echo
+
+	}
+	// run terminal session
+	if err := sess.RequestPty("xterm", 50, 80, modes); err != nil {
+		log.Fatal(err)
+	}
+	// // start remote shell
+	// if err := sess.Shell(); err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	// StdinPipe for commands
+	log.Println("getting stdin")
 	stdin, err := sess.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
 	stdout, err := sess.StdoutPipe()
+	log.Println("getting stdout")
 	if err != nil {
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
+	log.Println("got")
 
 	// Uncomment to store output in variable
 	// var b bytes.Buffer
@@ -72,14 +116,20 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 	sess.Stderr = os.Stderr
 
 	// Start remote shell
+	log.Println("starting shell")
 	err = sess.Shell()
 	if err != nil {
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
+	log.Println("started")
 
 	// Wait for promt
 
+	log.Println("getting reader")
 	reader := bufio.NewReader(stdout)
+	// reader := bufio.NewReader(&b)
+	log.Println("got reader")
+	log.Println("Wait for promt")
 	rcv, err := reader.ReadBytes('#')
 	if err != nil {
 		fmt.Printf("wair prompt reader error: %s", err)
@@ -88,16 +138,18 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 
 	var out []byte
 
-	out = append(out, rcv...)
+	// out = append(out, rcv...)
 
 	for _, cmd := range commands {
 		_, err = fmt.Fprintf(stdin, "%s\n", cmd)
 		if err != nil {
 			return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 		}
+		log.Println("wrote to remote stdin")
 
 		// Wait for promt after each command
-		rcv, err = reader.ReadBytes('#')
+		log.Println("Wait for promt")
+		rcv, err := reader.ReadBytes('#')
 		if err != nil && err != io.EOF {
 			fmt.Printf("reader error: %s", err)
 			return rcv, err
@@ -134,6 +186,12 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 	// out := b.Bytes()
 	// fmt.Println(string(out))
 
+	err = os.WriteFile(hostname+".log", out, 0644)
+	if err != nil {
+		// log.Print(err)
+		return out, fmt.Errorf("docommands %s: %w", hostname, err)
+	}
+
 	return out, nil
 
 }
@@ -141,6 +199,8 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 func GetConfig(hostname, username, password string, commands []string) error {
 	var reConf = regexp.MustCompile(`(?s)Current configuration .*end`)
 	var reHost = regexp.MustCompile(`(?m)^hostname\s([-0-9A-Za-z_]+).?$`)
+	var reNXConf = regexp.MustCompile(`(?s)\!Command: show running-config.*#`)
+	// var reNXConf = regexp.MustCompile(`(?s)(\!Command: show running-config.*)#`)
 
 	out, err := doSSHCommands(hostname, username, password, commands)
 	if err != nil {
@@ -154,6 +214,14 @@ func GetConfig(hostname, username, password string, commands []string) error {
 
 		if reConf.Match(out) {
 			config := reConf.FindAll(out, -1)[0]
+			err := os.WriteFile(fname, config, 0644)
+			if err != nil {
+				log.Print(err)
+				return err
+			}
+		} else if reNXConf.Match(out) {
+			config := reNXConf.FindAll(out, -1)[0]
+			// config := reNXConf.FindSubmatch(out)[1]
 			err := os.WriteFile(fname, config, 0644)
 			if err != nil {
 				log.Print(err)
@@ -198,16 +266,16 @@ func GetUsers(hostname, username, password string, commands []string, ch chan st
 }
 
 func DoCommands(hostname, username, password string, commands []string) error {
-	out, err := doSSHCommands(hostname, username, password, commands)
+	_, err := doSSHCommands(hostname, username, password, commands)
 	if err != nil {
 		return fmt.Errorf("docommands %s: %w", hostname, err)
 	}
 
-	err = os.WriteFile(hostname+".log", out, 0644)
-	if err != nil {
-		// log.Print(err)
-		return fmt.Errorf("docommands %s: %w", hostname, err)
-	}
+	// err = os.WriteFile(hostname+".log", out, 0644)
+	// if err != nil {
+	// 	// log.Print(err)
+	// 	return fmt.Errorf("docommands %s: %w", hostname, err)
+	// }
 
 	return nil
 }
