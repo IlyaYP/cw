@@ -1,10 +1,8 @@
 package pkg
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"regexp"
@@ -98,7 +96,7 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 	}
 
-	stdout, err := sess.StdoutPipe()
+	// stdout, err := sess.StdoutPipe()
 	log.Println("getting stdout")
 	if err != nil {
 		return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
@@ -106,8 +104,8 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 	log.Println("got")
 
 	// Uncomment to store output in variable
-	// var b bytes.Buffer
-	// sess.Stdout = &b
+	var b bytes.Buffer
+	sess.Stdout = &b
 	//sess.Stderr = &b
 
 	// Enable system stdout
@@ -123,20 +121,20 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 	}
 	log.Println("started")
 
-	// Wait for promt
+	// // Wait for promt
 
-	log.Println("getting reader")
-	reader := bufio.NewReader(stdout)
-	// reader := bufio.NewReader(&b)
-	log.Println("got reader")
-	log.Println("Wait for promt")
-	rcv, err := reader.ReadBytes('#')
-	if err != nil {
-		fmt.Printf("wair prompt reader error: %s", err)
-		return rcv, err
-	}
+	// log.Println("getting reader")
+	// reader := bufio.NewReader(stdout)
+	// // reader := bufio.NewReader(&b)
+	// log.Println("got reader")
+	// log.Println("Wait for promt")
+	// rcv, err := reader.ReadBytes('#')
+	// if err != nil {
+	// 	fmt.Printf("wair prompt reader error: %s", err)
+	// 	return rcv, err
+	// }
 
-	var out []byte
+	// var out []byte
 
 	// out = append(out, rcv...)
 
@@ -145,16 +143,16 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 		if err != nil {
 			return nil, fmt.Errorf("dosshcommand %s: %w", hostname, err)
 		}
-		log.Println("wrote to remote stdin")
+		// log.Println("wrote to remote stdin")
 
-		// Wait for promt after each command
-		log.Println("Wait for promt")
-		rcv, err := reader.ReadBytes('#')
-		if err != nil && err != io.EOF {
-			fmt.Printf("reader error: %s", err)
-			return rcv, err
-		}
-		out = append(out, rcv...)
+		// // Wait for promt after each command
+		// log.Println("Wait for promt")
+		// rcv, err := reader.ReadBytes('#')
+		// if err != nil && err != io.EOF {
+		// 	fmt.Printf("reader error: %s", err)
+		// 	return rcv, err
+		// }
+		// out = append(out, rcv...)
 
 	}
 
@@ -183,7 +181,7 @@ func doSSHCommands(hostname, username, password string, commands []string) ([]by
 
 	// Uncomment to store in variable
 	// fmt.Println(b.String())
-	// out := b.Bytes()
+	out := b.Bytes()
 	// fmt.Println(string(out))
 
 	err = os.WriteFile(hostname+".log", out, 0644)
